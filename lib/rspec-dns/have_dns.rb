@@ -104,7 +104,7 @@ RSpec::Matchers.define :have_dns do
 
   def _records
     @_records ||= begin
-      Timeout::timeout(2) {
+      Timeout::timeout(10) {
         if _config.nil?
           Dnsruby::Resolver.new.query(@dns, Dnsruby::Types.ANY)
         else
