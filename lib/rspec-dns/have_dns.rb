@@ -104,7 +104,7 @@ RSpec::Matchers.define :have_dns do
 
   def _records
     @_records ||= begin
-      Timeout::timeout(1) {
+      Timeout::timeout(2) {
         if _config.nil?
           Dnsruby::Resolver.new.query(@dns, Dnsruby::Types.ANY)
         else
@@ -113,7 +113,7 @@ RSpec::Matchers.define :have_dns do
       }
     rescue Timeout::Error
       $stderr.puts "Connection timed out for #{@dns}"
-      []
+      Dnsruby::Message.new
     end
   end
 
