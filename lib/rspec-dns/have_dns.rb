@@ -99,19 +99,17 @@ RSpec::Matchers.define :have_dns do
 
   def _records
     @_records ||= begin
-      Timeout::timeout(1) do
-        resolver.getresources(@dns, Resolv::DNS::Resource::IN::ANY)
-      end
+      Timeout::timeout(1) {
+        if _config.nil?
+          Resolv::DNS.new.getresources(@dns, Resolv::DNS::Resource::IN::ANY)
+        else
+          Resolv::DNS.new(_config).getresources(@dns, Resolv::DNS::Resource::IN::ANY)
+        end
+      }
     rescue Timeout::Error
       $stderr.puts "Connection timed out for #{@dns}"
       []
     end
-  end
-
-  def resolver
-    r = _config ? Resolv::DNS.new(_config) : Resolv::DNS.new
-    r.extend(ResolvTcpPatch) if r.methods.include? 'make_requester'
-    r
   end
 
   def _pretty_print_records
