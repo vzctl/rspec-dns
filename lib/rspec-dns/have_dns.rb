@@ -4,33 +4,32 @@ RSpec::Matchers.define :have_dns do
   match do |dns|
     @dns = dns
     @number_matched = 0
+    if @authority
+      @records = _records.authority
+    else
+      @records = _records.answer
+    end
 
-    matched = _options.all? do |opt|
-      opt.each_pair do |option, value|
-        if @authority
-          records = _records.authority
-        else
-          records = _records.answer
-        end
-        if option == :at_least
-          @at_least = true
-          @number_matched = records.count
-          records.count >= value
-        else
-          records = records.find_all do |record|
-            # To distinguish types because not all Resolv returns have type
-            if value.is_a? String
-              record.send(option).to_s == value
-            elsif value.is_a? Regexp
-              record.send(option).to_s =~ value
-            else
-              record.send(option) == value
-            end
-            records.count > 0
+    results = @records.find_all do |record|
+      matched = _options.all? do |option, value|
+        begin
+          # To distinguish types because not all Resolv returns have type
+          if value.is_a? String
+            record.send(option).to_s == value
+          elsif value.is_a? Regexp
+            record.send(option).to_s =~ value
+          else
+            record.send(option) == value
           end
+        rescue Exception => e
+          false
         end
       end
+      matched
     end
+    @at_least = _options[:at_least] ? _options[:at_least] : 1
+    @number_matched = results.count
+    @number_matched >= @at_least
   end
 
   failure_message_for_should do |actual|
@@ -54,12 +53,12 @@ RSpec::Matchers.define :have_dns do
   end
 
   chain :at_least do |actual|
-    _options.push(:at_least => actual)
+    @at_least = actual
   end
 
   def method_missing(m, *args, &block)
     if m.to_s =~ /(and\_with|and|with)?\_(.*)$/
-      _options.push($2.to_sym => args.first)
+      _options[$2.to_sym] = args.first
       self
     else
       super
@@ -95,7 +94,7 @@ RSpec::Matchers.define :have_dns do
   end
 
   def _options
-    @_options ||= []
+    @_options ||= {}
   end
 
   def _pretty_print_options
@@ -118,7 +117,7 @@ RSpec::Matchers.define :have_dns do
   end
 
   def _pretty_print_records
-    "\n" + _records.collect { |record| _pretty_print_record(record) }.join("\n")
+    "\n" + @records.collect { |record| _pretty_print_record(record) }.join("\n")
   end
 
   def _pretty_print_record(record)
