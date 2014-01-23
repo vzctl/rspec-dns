@@ -3,7 +3,8 @@ require 'dnsruby'
 RSpec::Matchers.define :have_dns do
   match do |dns|
     @dns = dns
-    @number_matched = 0
+    @exceptions = []
+
     if @authority
       @records = _records.authority
     else
@@ -22,18 +23,20 @@ RSpec::Matchers.define :have_dns do
             record.send(option) == value
           end
         rescue Exception => e
+          @exceptions << e.message
           false
         end
       end
       matched
     end
-    @at_least = _options[:at_least] ? _options[:at_least] : 1
     @number_matched = results.count
-    @number_matched >= @at_least
+    @number_matched >= (@at_least ? @at_least : 1)
   end
 
   failure_message_for_should do |actual|
-    if @at_least
+    if !@exceptions.empty?
+      "got #{@exceptions.size} exception(s): #{@exceptions.join(", ")}"
+    elsif @at_least
       "expected #{actual} to have: #{@at_least} records of #{_pretty_print_options}, but found #{@number_matched}. Other records were: #{_pretty_print_records}"
     else
       "expected #{actual} to have: #{_pretty_print_options}, but did not. other records were: #{_pretty_print_records}"
